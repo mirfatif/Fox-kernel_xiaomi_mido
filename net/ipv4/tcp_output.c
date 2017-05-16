@@ -256,9 +256,6 @@ void tcp_select_initial_window(int __space, __u32 mss,
 		*rcv_wnd = min(*rcv_wnd, init_rcv_wnd * mss);
 	}
 
-        /* Lock the initial TCP window size to 64K*/
-        *rcv_wnd = 64240;
-
 	/* Set the clamp no higher than max representable value */
 	(*window_clamp) = min(65535U << (*rcv_wscale), *window_clamp);
 }
@@ -618,8 +615,7 @@ static unsigned int tcp_synack_options(struct request_sock *req,
 				       unsigned int mss, struct sk_buff *skb,
 				       struct tcp_out_options *opts,
 				       const struct tcp_md5sig_key *md5,
-				       struct tcp_fastopen_cookie *foc,
-				       enum tcp_synack_type synack_type)
+				       struct tcp_fastopen_cookie *foc)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 	unsigned int remaining = MAX_TCP_OPTION_SPACE;
@@ -634,8 +630,7 @@ static unsigned int tcp_synack_options(struct request_sock *req,
 		 * rather than TS in order to fit in better with old,
 		 * buggy kernels, but that was deemed to be unnecessary.
 		 */
-		if (synack_type != TCP_SYNACK_COOKIE)
-			ireq->tstamp_ok &= !ireq->sack_ok;
+		ireq->tstamp_ok &= !ireq->sack_ok;
 	}
 #endif
 
@@ -938,6 +933,17 @@ enum hrtimer_restart tcp_pace_kick(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+/* BBR congestion control needs pacing.
+ * Same remark for SO_MAX_PACING_RATE.
+ * sch_fq packet scheduler is efficiently handling pacing,
+ * but is not always installed/used.
+ * Return true if TCP stack should pace packets itself.
+ */
+static bool tcp_needs_internal_pacing(const struct sock *sk)
+{
+	return smp_load_acquire(&sk->sk_pacing_status) == SK_PACING_NEEDED;
+}
+
 static void tcp_internal_pacing(struct sock *sk, const struct sk_buff *skb)
 {
 	u64 len_ns;
@@ -949,6 +955,9 @@ static void tcp_internal_pacing(struct sock *sk, const struct sk_buff *skb)
 	if (!rate || rate == ~0U)
 		return;
 
+	/* Should account for header sizes as sch_fq does,
+	 * but lets make things simple.
+	 */
 	len_ns = (u64)skb->len * NSEC_PER_SEC;
 	do_div(len_ns, rate);
 	hrtimer_start(&tcp_sk(sk)->pacing_timer,
@@ -1648,8 +1657,8 @@ static bool tcp_nagle_check(bool partial, const struct tcp_sock *tp,
 /* Return how many segs we'd like on a TSO packet,
  * to send one TSO packet per ms
  */
-static u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
-			    int min_tso_segs)
+u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
+		     int min_tso_segs)
 {
 	u32 bytes, segs;
 
@@ -1665,6 +1674,7 @@ static u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
 
 	return segs;
 }
+EXPORT_SYMBOL(tcp_tso_autosize);
 
 /* Return the number of segments we want in the skb we are transmitting.
  * See if congestion control module wants to decide; otherwise, autosize.
@@ -1672,13 +1682,11 @@ static u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
 static u32 tcp_tso_segs(struct sock *sk, unsigned int mss_now)
 {
 	const struct tcp_congestion_ops *ca_ops = inet_csk(sk)->icsk_ca_ops;
-	u32 min_tso, tso_segs;
+	u32 tso_segs = ca_ops->tso_segs_goal ? ca_ops->tso_segs_goal(sk) : 0;
 
-	min_tso = ca_ops->min_tso_segs ?
-			ca_ops->min_tso_segs(sk) :
-			sysctl_tcp_min_tso_segs;
-
-	tso_segs = tcp_tso_autosize(sk, mss_now, min_tso);
+	if (!tso_segs)
+		tso_segs = tcp_tso_autosize(sk, mss_now,
+					    sysctl_tcp_min_tso_segs);
 	return min_t(u32, tso_segs, sk->sk_gso_max_segs);
 }
 
@@ -2422,11 +2430,6 @@ void tcp_send_loss_probe(struct sock *sk)
 	int pcount;
 	int mss = tcp_current_mss(sk);
 
-	/* At most one outstanding TLP */
-	if (tp->tlp_high_seq)
-		goto rearm_timer;
-
-	tp->tlp_retrans = 0;
 	skb = tcp_send_head(sk);
 	if (skb) {
 		if (tcp_snd_wnd_test(tp, skb, mss)) {
@@ -2449,6 +2452,10 @@ void tcp_send_loss_probe(struct sock *sk)
 		return;
 	}
 
+	/* At most one outstanding TLP retransmission. */
+	if (tp->tlp_high_seq)
+		goto rearm_timer;
+
 	if (skb_still_in_host_queue(sk, skb))
 		goto rearm_timer;
 
@@ -2469,12 +2476,10 @@ void tcp_send_loss_probe(struct sock *sk)
 	if (__tcp_retransmit_skb(sk, skb, 1))
 		goto rearm_timer;
 
-	tp->tlp_retrans = 1;
-
-probe_sent:
 	/* Record snd_nxt for loss detection. */
 	tp->tlp_high_seq = tp->snd_nxt;
 
+probe_sent:
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPLOSSPROBES);
 	/* Reset s.t. tcp_rearm_rto will restart timer from now */
 	inet_csk(sk)->icsk_pending = 0;
@@ -3239,8 +3244,8 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 	md5 = tcp_rsk(req)->af_specific->req_md5_lookup(sk, req_to_sk(req));
 #endif
 	skb_set_hash(skb, tcp_rsk(req)->txhash, PKT_HASH_TYPE_L4);
-	tcp_header_size = tcp_synack_options(req, mss, skb, &opts, md5,
-					     foc, synack_type) + sizeof(*th);
+	tcp_header_size = tcp_synack_options(req, mss, skb, &opts, md5, foc) +
+			  sizeof(*th);
 
 	skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);
