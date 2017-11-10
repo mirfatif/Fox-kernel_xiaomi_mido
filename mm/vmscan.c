@@ -150,7 +150,17 @@ struct scan_control {
 /*
  * From 0 .. 100.  Higher means more swappy.
  */
-int vm_swappiness = 60;
+int vm_swappiness = 8;
+#ifdef CONFIG_KSWAPD_LAZY_RECLAIM
+/*
+ * time for kswapd to breath between each scanning loop
+ */
+unsigned int vm_breath_period __read_mostly = 4000;
+/*
+ * default adj for kswapd to perform lazy-reclaim
+ */
+int vm_breath_priority __read_mostly = 500;
+#endif
 /*
  * The total number of pages which are beyond the high watermark within all
  * zones.
