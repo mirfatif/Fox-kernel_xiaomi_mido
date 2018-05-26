@@ -281,7 +281,16 @@ int sched_boost_handler(struct ctl_table *table, int write,
 	if (verify_boost_params(*data))
 		_sched_set_boost(*data);
 	else
-		ret = -EINVAL;
+       {
+		/*
+		 * Only return error when switching from one boost type
+		 * to another.
+		 */
+		if (old_val != *data) {
+			*data = old_val;
+			ret = -EINVAL;
+		}
+	}
 
 done:
 	mutex_unlock(&boost_mutex);
