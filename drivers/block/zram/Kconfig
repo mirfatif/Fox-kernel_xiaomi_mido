@@ -46,4 +46,6 @@ config ZRAM_DEFAULT_COMP_ALGORITHM
 config ZRAM_HIDE_LZO
 	bool "Hide LZO compression algorithm in available compression list"
 
-
+config ZRAM_DEFAULT_COMP_ALGORITHM
+	string "Default ZRAM algorithm"
+	default "lz4"
