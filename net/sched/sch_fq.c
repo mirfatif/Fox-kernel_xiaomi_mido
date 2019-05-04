@@ -313,7 +313,7 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 	}
 	fq_flow_set_detached(f);
 	f->sk = sk;
-	if (skb->sk == sk) {
+	if (skb->sk == sk)
 		f->socket_hash = sk->sk_hash;
 		if (q->rate_enable)
 			smp_store_release(&sk->sk_pacing_status,
