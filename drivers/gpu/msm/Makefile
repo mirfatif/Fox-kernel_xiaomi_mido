@@ -2,14 +2,12 @@ ccflags-y := -Iinclude/linux
 
 msm_kgsl_core-y = \
 	kgsl.o \
-	kgsl_trace.o \
 	kgsl_drawobj.o \
 	kgsl_ioctl.o \
 	kgsl_sharedmem.o \
 	kgsl_pwrctrl.o \
 	kgsl_pwrscale.o \
 	kgsl_mmu.o \
-	kgsl_snapshot.o \
 	kgsl_events.o \
 	kgsl_pool.o \
 	kgsl_gmu.o \
