@@ -93,6 +93,7 @@ try-run = $(shell set -e;		\
 	TMPO=$(TMPOUT)/tmp.o;		\
 	mkdir -p $(TMPOUT);		\
 	trap "rm -rf $(TMPOUT)" EXIT;	\
+    echo "Testing $(1)..." >> testing.log; \
 	if ($(1)) >/dev/null 2>&1;	\
 	then echo "$(2)";		\
 	else echo "$(3)";		\
