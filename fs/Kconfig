@@ -311,4 +311,18 @@ endif # NETWORK_FILESYSTEMS
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
 
+config DYNAMIC_FSYNC
+	bool "dynamic file sync control"
+	default n
+	help
+	  An experimental file sync control using new power_suspend driver 
+
+config BLOCK_UNWANTED_APPS
+	bool "Enable blocking of unwanted apps"
+	depends on ANDROID
+	help
+	   This option allows you to block a set of apps/binaries (by name)
+	   from running on devices with your kernel installed. May be useful
+	   if your users are uneducated.
+
 endmenu
