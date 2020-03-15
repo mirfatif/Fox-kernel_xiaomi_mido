@@ -45,7 +45,7 @@ obj-$(CONFIG_CRYPTO_CRC32_ARM64) += crc32-arm64.o
 ifdef CONFIG_MACH_XIAOMI_MSM8953
 CFLAGS_crc32-arm64.o	:= -mcpu=cortex-a53+crc -Wa,-mcpu=cortex-a53+crc -mtune=cortex-a53
 else
-CFLAGS_crc32-arm64.o	:= -mcpu=generic+crc
+CFLAGS_crc32-arm64.o	:= -mcpu=generic+crc $(filter -mcpu=%, $(KBUILD_CFLAGS))
 endif
 
 $(obj)/aes-glue-%.o: $(src)/aes-glue.c FORCE
