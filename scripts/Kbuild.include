@@ -89,8 +89,8 @@ TMPOUT = $(if $(KBUILD_EXTMOD),$(firstword $(KBUILD_EXTMOD))/).tmp_$$$$
 # Exit code chooses option. "$$TMP" is can be used as temporary file and
 # is automatically cleaned up.
 try-run = $(shell set -e;		\
-	TMP=$(TMPOUT)/tmp;		\
-	TMPO=$(TMPOUT)/tmp.o;		\
+	TMP="$(TMPOUT).$$$$.tmp";       \
+	TMPO="$(TMPOUT).$$$$.o";        \
 	mkdir -p $(TMPOUT);		\
 	trap "rm -rf $(TMPOUT)" EXIT;	\
     echo "Testing $(1)..." >> testing.log; \
