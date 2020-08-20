@@ -675,8 +675,6 @@ static int q6core_get_legacy_avcs_fwk_version(uint32_t service_id)
 	switch (service_id) {
 	case APRV2_IDS_SERVICE_ID_ADSP_ADM_V:
 		return ADSP_ADM_API_VERSION_V1;
-	case APRV2_IDS_SERVICE_ID_ADSP_ASM_V:
-		return ADSP_ASM_API_VERSION_V1;
 	case APRV2_IDS_SERVICE_ID_ADSP_AFE_V:
 		return AFE_API_VERSION_V1;
 	default:
