@@ -135,9 +135,11 @@
     .flags = flag, \
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0))
 #ifdef WLAN_FEATURE_VOWIFI_11R
 #define WLAN_AKM_SUITE_FT_8021X         0x000FAC03
 #define WLAN_AKM_SUITE_FT_PSK           0x000FAC04
+#endif
 #endif
 
 #define HDD_CHANNEL_14 14
@@ -9978,11 +9980,6 @@ static void wlan_hdd_check_11gmode(u8 *pIe, u8* require_ht,
 {
     u8 i, num_rates = pIe[0];
 
-    if (num_rates > SIR_MAC_RATESET_EID_MAX) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, "Invalid supported rates %d", num_rates);
-        return;
-    }
-
     pIe += 1;
     for ( i = 0; i < num_rates; i++)
     {
@@ -14435,7 +14432,11 @@ static struct cfg80211_bss* wlan_hdd_cfg80211_inform_bss(
     freq = ieee80211_channel_to_frequency(chan_no);
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+    chan = ieee80211_get_channel(wiphy, freq);
+#else
     chan = __ieee80211_get_channel(wiphy, freq);
+#endif
 
     if (!chan) {
        hddLog(VOS_TRACE_LEVEL_ERROR, "%s chan pointer is NULL", __func__);
@@ -14608,7 +14609,13 @@ wlan_hdd_cfg80211_inform_bss_frame( hdd_adapter_t *pAdapter,
 #else
     freq = ieee80211_channel_to_frequency(chan_no);
 #endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
+    chan = ieee80211_get_channel(wiphy, freq);
+#else
     chan = __ieee80211_get_channel(wiphy, freq);
+#endif
+
     /*when the band is changed on the fly using the GUI, three things are done
      * 1. scan abort 2.flush scan results from cache 3.update the band with the new band user specified(refer to the hdd_setBand_helper function)
      * as part of the scan abort, message willbe queued to PE and we proceed with flushing and changinh the band.
