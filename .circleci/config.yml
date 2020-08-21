@@ -1,0 +1,18 @@
+version: 2.1
+jobs:
+  compile:
+   docker:
+      - image: panchajanya1999/archlinux:latest
+   steps:
+      - run:
+          command: |
+           git config --global user.name "shashank1436"
+           git config --global user.email "9945shashank@gmail.com"
+           git config --global color.ui false
+           curl https://raw.githubusercontent.com/Fox-kernel/Build-script/master/script_build.sh > script_build.sh
+           source script_build.sh
+workflows:
+  version: 2.1
+  cooking:
+    jobs:
+      - compile
