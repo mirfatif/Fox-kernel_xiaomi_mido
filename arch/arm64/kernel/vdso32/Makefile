@@ -94,7 +94,7 @@ VDSO_CFLAGS += -Wno-int-to-pointer-cast
 
 ifeq ($(cc-name),clang)
 # Snapdragon LLVM specific warning
-VDSO_CFLAGS += $(call cc32-disable-warning, vectorizer-no-neon)
+VDSO_CFLAGS += $(call cc32-disable-warning)
 endif
 
 ifdef CONFIG_MACH_XIAOMI_MSM8953
